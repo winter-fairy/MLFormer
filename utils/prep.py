@@ -7,16 +7,18 @@ from dataset.MyVOCDataset import MyVOCDataset
 from utils.metrics import VOCmAP
 
 
-def prep_VOC12(VOC_PATH, transforms=None, image_set='train', batch_size=32):
+def prep_VOC12(VOC_PATH, transforms=None, image_set='train', batch_size=32, year='2012'):
     """
     get the dataloader for the specified dataset
+    :param VOC_PATH: 数据集存放路径
+    :param year: 数据集年份
     :param transforms:
     :param image_set: 'train', 'val' or 'test'
     :param batch_size:
     :return: dataloader
     """
     dataset = MyVOCDataset(root=VOC_PATH,
-                           year='2012',
+                           year=year,
                            image_set=image_set,
                            download=False,
                            transforms=transforms)

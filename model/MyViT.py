@@ -7,9 +7,12 @@ class MyViT(nn.Module):
                  checkpoint_path='../parameters/ViT_model/vit_base_patch12_224_augreg2_in21k_ft_in1k.bin',
                  num_classes=20):
         super(MyViT, self).__init__()
-        # 使用checkpoint加载预训练的模型
-        self.model = timm.create_model(model_name=model_name, pretrained=pretrained,
-                                  checkpoint_path=checkpoint_path)
+        # 使用checkpoint加载预训练的模型，直接使用pretrained参数会报错
+        if pretrained:
+            self.model = timm.create_model(model_name=model_name, pretrained=False,
+                                           checkpoint_path=checkpoint_path)
+        else:
+            self.model = timm.create_model(model_name=model_name, pretrained=False)
         # 修改最终的全连接层
         self.model.head = nn.Linear(self.model.head.in_features, 20)
 

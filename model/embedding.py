@@ -36,7 +36,7 @@ def get_embeddings(model_name='bert', dataset='VOC2012', embedding_dim=768):
         ...
 
     # 判断使用的数据集
-    if dataset == 'VOC2012':
+    if dataset == 'VOC2012' or dataset == 'VOC2007':
         mapping = category_to_id_mapping_voc2012
     elif dataset == 'mscoco':
         ...
@@ -56,3 +56,8 @@ def get_embeddings(model_name='bert', dataset='VOC2012', embedding_dim=768):
     embeddings_matrix = torch.stack(embeddings, dim=0)
     embeddings_matrix = embeddings_matrix.view(len(mapping), -1)
     return embeddings_matrix
+
+
+if __name__ == '__main__':
+    embeddings = get_embeddings()
+    print(embeddings.shape)

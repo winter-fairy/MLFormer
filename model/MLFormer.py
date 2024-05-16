@@ -32,7 +32,8 @@ class MLFormer(nn.Module):
         # 标签嵌入
         self.embed_type = embed_type
         if embed_type != 'random':
-            self.text_feature = get_embeddings(model_name=embed_type)
+            self.text_feature = get_embeddings(model_name=embed_type).cuda()
+            self.embedding = nn.Parameter(self.text_feature)
         else:
             self.text_feature = torch.eye(self.num_class).cuda() # 为每一个标签生成标签嵌入  [20,20]
         self.text_linear = nn.Linear(self.num_class, embed_dim)
@@ -56,7 +57,7 @@ class MLFormer(nn.Module):
             text_features = torch.stack([self.text_feature for _ in range(batch_size)], dim=0)  # [bs,20,20]
             text_features = self.text_linear(text_features)  # [bs,20,embed_dim]
         else:
-            text_features = self.text_feature
+            text_features = torch.stack([self.text_feature for _ in range(batch_size)], dim=0)  # [bs,20,768]
 
         # text_branch前向传播
         for i in range(self.start_layer, self.depth):

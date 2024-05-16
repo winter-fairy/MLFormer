@@ -39,7 +39,7 @@ model.to(device)
 
 batch_size = 16
 img_size = 224
-learning_rate = 0.000001
+learning_rate = 0.00001
 num_epochs = 60
 VOC_PATH = '../data/VOC'
 
@@ -55,14 +55,16 @@ transforms = transforms.Compose([
     # 你可以根据需要添加其他变换，如归一化等
 ])
 
-train_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='train', VOC_PATH=VOC_PATH)
-val_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='val', VOC_PATH=VOC_PATH)
+train_loader = prep_VOC12(transforms=transforms, batch_size=batch_size,
+                          image_set='trainval', VOC_PATH=VOC_PATH, year='2007')
+val_loader = prep_VOC12(transforms=transforms, batch_size=batch_size,
+                        image_set='test', VOC_PATH=VOC_PATH, year='2007')
 
 """
 train the model
 """
 max_mAP = 0.0  # record the max mAP during training
-SAVE_MODEL_PATH = "../parameters/MyModel/image_branch_224.pth"  # where to save the model parameters
+SAVE_MODEL_PATH = "../parameters/MyModel/2007/image_branch_no_pretrained.pth"  # where to save the model parameters
 LOAD_MODEL_PATH = None  # where to load the model parameters
 if LOAD_MODEL_PATH is not None:
     max_mAP, model = mp.load_model(model, LOAD_MODEL_PATH, device)
@@ -110,6 +112,6 @@ for epoch in range(num_epochs):
         early_stopping = 0
     else:
         early_stopping = early_stopping + 1
-        if early_stopping >= 15:
+        if early_stopping >= 5:
             print("Early stop")
             break

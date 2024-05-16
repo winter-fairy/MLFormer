@@ -30,9 +30,9 @@ if torch.cuda.is_available():
     torch.backends.cudnn.deterministic = True  # 确保每次结果相同
     torch.backends.cudnn.benchmark = False  # 禁用CuDNN的确定性算法，以获得可重复的结果
 
-img_branch = MyViT()
+img_branch = MyViT(pretrained=True)
 img_branch.to(device)
-text_branch = MLFormer()
+text_branch = MLFormer(start_layer=11, embed_type="bert")
 text_branch.to(device)
 
 res = []
@@ -51,8 +51,8 @@ for _, model in img_branch.named_children():
 
 batch_size = 16
 img_size = 224
-learning_rate = 0.000001
-num_epochs = 60
+learning_rate = 0.00005
+num_epochs = 100
 VOC_PATH = '../data/VOC'
 
 criterion = AsymmetricLossOptimized()  # 二进制交叉熵损失
@@ -66,19 +66,20 @@ transforms = transforms.Compose([
     transforms.ToTensor(),  # 转换为张量
 ])
 
-train_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='train', VOC_PATH=VOC_PATH)
-val_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='val', VOC_PATH=VOC_PATH)
+train_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='trainval', VOC_PATH=VOC_PATH, year='2007')
+val_loader = prep_VOC12(transforms=transforms, batch_size=batch_size, image_set='test', VOC_PATH=VOC_PATH, year='2007')
 
 """
 train the model
 """
 max_mAP = 0.0  # record the max mAP during training
-SAVE_MODEL_PATH = "../parameters/MyModel/text_branch_224.pth"  # where to save the model parameters
-LOAD_MODEL_PATH = "../parameters/MyModel/image_branch_224.pth"  # where to load the model parameters
-LOAD_MODEL_PATH_2 = "../parameters/MyModel/text_branch_224.pth"
+SAVE_MODEL_PATH = "../parameters/MyModel/2007/text_branch_224_start11_bert.pth"  # where to save the model parameters
+LOAD_MODEL_PATH = "../parameters/MyModel/2007/image_branch_2007_224_v1.pth"  # where to load the model parameters
+LOAD_MODEL_PATH_2 = None
 
 _, img_branch = mp.load_model(img_branch, LOAD_MODEL_PATH, device)
-max_mAP, text_branch = mp.load_model(text_branch, LOAD_MODEL_PATH_2, device)
+if LOAD_MODEL_PATH_2 is not None:
+    max_mAP, text_branch = mp.load_model(text_branch, LOAD_MODEL_PATH_2, device)
 print("current best mAP:", max_mAP)
 
 early_stopping = 0
@@ -107,30 +108,31 @@ for epoch in range(num_epochs):
     print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}')
 
     # 每训练一个epoch, 在验证集上进行评估
-    text_branch.eval()
-    val_map = VOCmAP()  # 利用自己定义的mAP类来计算mAP
-    val_map.reset()
-    with torch.no_grad():
-        for _, (images, targets) in enumerate(tqdm(val_loader)):
-            images = images.to(device)
-            targets = targets.to(device)
+    if epoch % 3 == 0:
+        text_branch.eval()
+        val_map = VOCmAP()  # 利用自己定义的mAP类来计算mAP
+        val_map.reset()
+        with torch.no_grad():
+            for _, (images, targets) in enumerate(tqdm(val_loader)):
+                images = images.to(device)
+                targets = targets.to(device)
 
-            res.clear()
-            output1 = img_branch(images)  # 经过图像分支，得到第一个置信度
-            output2 = text_branch(res)
-            final_output = output2
+                res.clear()
+                output1 = img_branch(images)  # 经过图像分支，得到第一个置信度
+                output2 = text_branch(res)
+                final_output = output2
 
-            val_map.update(targets.cpu().numpy(), final_output.cpu().numpy())
+                val_map.update(targets.cpu().numpy(), final_output.cpu().numpy())
 
-    aps = val_map.get_aps()
-    mAP = np.mean(aps)
-    print("MAP score during evaluation:", mAP)
-    if mAP > max_mAP:
-        mp.save_model(text_branch, mAP, SAVE_MODEL_PATH)
-        max_mAP = mAP
-        early_stopping = 0
-    else:
-        early_stopping = early_stopping + 1
-        if early_stopping >= 60:
-            print("Early stop")
-            break
+        aps = val_map.get_aps()
+        mAP = np.mean(aps)
+        print("MAP score during evaluation:", mAP)
+        if mAP > max_mAP:
+            mp.save_model(text_branch, mAP, SAVE_MODEL_PATH)
+            max_mAP = mAP
+            early_stopping = 0
+        else:
+            early_stopping = early_stopping + 1
+            if early_stopping >= 3:
+                print("Early stop")
+                break
